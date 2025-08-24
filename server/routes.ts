@@ -100,6 +100,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let novoStatus: number;
       switch (novo) {
+        case 'AguardandoPagamento':
+          novoStatus = StatusPedido.AguardandoPagamento;
+          break;
         case 'EmProducao':
           novoStatus = StatusPedido.EmProducao;
           break;
