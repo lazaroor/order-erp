@@ -73,6 +73,7 @@ export function TransactionForm() {
               <SelectContent>
                 <SelectItem value={TipoLancamento.Entrada.toString()}>Entrada</SelectItem>
                 <SelectItem value={TipoLancamento.Saida.toString()}>Saída</SelectItem>
+                <SelectItem value={TipoLancamento.Provisao.toString()}>Provisão</SelectItem>
               </SelectContent>
             </Select>
           </div>
