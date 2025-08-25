@@ -183,14 +183,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/login", async (req, res) => {
     try {
-      const { nome } = req.body;
+      // Garantir que o nome informado esteja normalizado para evitar
+      // discrepâncias causadas por espaços extras ou diferenças de caixa.
+      const nome = (req.body?.nome || "").trim();
       if (!nome) {
-        return res.status(400).json({ message: "Nome de usuário é obrigatório" });
+        return res
+          .status(400)
+          .json({ message: "Nome de usuário é obrigatório" });
       }
+
       const usuario = await storage.getUsuarioByNome(nome);
       if (!usuario) {
-        return res.status(401).json({ message: "Usuário não encontrado" });
+        // Quando o usuário não existir, retornamos 404 para indicar que
+        // o recurso não foi encontrado em vez de 401 (não autorizado).
+        return res.status(404).json({ message: "Usuário não encontrado" });
       }
+
       res.json(usuario);
     } catch (error) {
       res.status(500).json({ message: "Erro interno do servidor" });
