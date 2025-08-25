@@ -250,6 +250,9 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                       {pedido.status === StatusPedido.Concluido && (
                         <span className="text-gray-400 text-sm">Finalizado</span>
                       )}
+                      {pedido.status === StatusPedido.Cancelado && (
+                        <span className="text-gray-400 text-sm">Finalizado</span>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
