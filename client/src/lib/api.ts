@@ -54,11 +54,12 @@ export const api = {
 
   // Caixa
   caixa: {
-    lancamentos: (start?: string, end?: string): Promise<LancamentoCaixa[]> => {
+    lancamentos: (start?: string, end?: string, pedidoId?: string): Promise<LancamentoCaixa[]> => {
       const params = new URLSearchParams();
       if (start) params.append('start', start);
       if (end) params.append('end', end);
-      
+      if (pedidoId) params.append('pedidoId', pedidoId);
+
       const url = `/api/caixa/lancamentos${params.toString() ? `?${params}` : ''}`;
       return fetch(url).then(res => res.json());
     },

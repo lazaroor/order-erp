@@ -4,6 +4,7 @@ import { StatusPedido, type PedidoComItens } from "../../../../shared/schema";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { ShippingModal } from "./shipping-modal";
+import { PaymentModal } from "./payment-modal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -35,6 +36,10 @@ export function OrderTable({ pedidos }: OrderTableProps) {
     pedidoId: "",
     pedidoNumero: "",
   });
+  const [paymentModal, setPaymentModal] = useState<{ isOpen: boolean; pedido: PedidoComItens | null }>({
+    isOpen: false,
+    pedido: null,
+  });
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -64,11 +69,25 @@ export function OrderTable({ pedidos }: OrderTableProps) {
     });
   };
 
+  const handlePayment = (pedido: PedidoComItens) => {
+    setPaymentModal({
+      isOpen: true,
+      pedido,
+    });
+  };
+
   const closeShippingModal = () => {
     setShippingModal({
       isOpen: false,
       pedidoId: "",
       pedidoNumero: "",
+    });
+  };
+
+  const closePaymentModal = () => {
+    setPaymentModal({
+      isOpen: false,
+      pedido: null,
     });
   };
 
@@ -192,7 +211,7 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => updateStatusMutation.mutate({ id: pedido.id, status: 'Concluido' })}
+                          onClick={() => handlePayment(pedido)}
                           disabled={updateStatusMutation.isPending}
                           className="text-green-600 hover:text-green-900"
                           data-testid={`button-concluir-${pedido.id}`}
@@ -235,6 +254,11 @@ export function OrderTable({ pedidos }: OrderTableProps) {
         onClose={closeShippingModal}
         pedidoId={shippingModal.pedidoId}
         pedidoNumero={shippingModal.pedidoNumero}
+      />
+      <PaymentModal
+        isOpen={paymentModal.isOpen}
+        onClose={closePaymentModal}
+        pedido={paymentModal.pedido}
       />
     </div>
   );

@@ -133,8 +133,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Caixa endpoints
   app.get("/api/caixa/lancamentos", async (req, res) => {
     try {
-      const { start, end } = req.query;
-      const lancamentos = await storage.getLancamentosCaixa(start as string, end as string);
+      const { start, end, pedidoId } = req.query;
+      const lancamentos = await storage.getLancamentosCaixa(start as string, end as string, pedidoId as string);
       res.json(lancamentos);
     } catch (error) {
       res.status(500).json({ message: "Erro interno do servidor" });

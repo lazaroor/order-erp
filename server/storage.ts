@@ -36,7 +36,7 @@ export interface IStorage {
   updatePedidoStatus(id: string, novoStatus: number, codigoRastreio?: string, custoFrete?: number): Promise<PedidoComItens | undefined>;
   
   // Caixa
-  getLancamentosCaixa(start?: string, end?: string): Promise<LancamentoCaixa[]>;
+  getLancamentosCaixa(start?: string, end?: string, pedidoId?: string): Promise<LancamentoCaixa[]>;
   createLancamentoCaixa(lancamento: InsertLancamentoCaixa): Promise<LancamentoCaixa>;
   getResumoCaixa(start?: string, end?: string): Promise<ResumoCaixa>;
 }
@@ -324,31 +324,16 @@ class SQLiteStorage implements IStorage {
         }).run();
       }
 
-      // If completing order, create entry for revenue
-      if (novoStatus === StatusPedido.Concluido) {
-        const valorVenda = pedidoAtual.itens.reduce(
-          (sum, item) => sum + (item.quantidade * item.precoUnitario), 0
-        );
-
-        // Entrada - Receita da Venda (o custo já foi lançado na criação do pedido)
-        this.drizzle.insert(lancamentosCaixa).values({
-          id: `lanc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          tipo: TipoLancamento.Entrada,
-          categoria: 'Receita de Venda',
-          valor: valorVenda,
-          data: new Date().toISOString(),
-          pedidoId: id,
-        }).run();
-      }
     })();
 
     return await this.getPedido(id);
   }
 
-  async getLancamentosCaixa(start?: string, end?: string): Promise<LancamentoCaixa[]> {
+  async getLancamentosCaixa(start?: string, end?: string, pedidoId?: string): Promise<LancamentoCaixa[]> {
     const conditions = [];
     if (start) conditions.push(gte(lancamentosCaixa.data, start));
     if (end) conditions.push(lte(lancamentosCaixa.data, end));
+    if (pedidoId) conditions.push(eq(lancamentosCaixa.pedidoId, pedidoId));
 
     let query = this.drizzle.select().from(lancamentosCaixa);
 
