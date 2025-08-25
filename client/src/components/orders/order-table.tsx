@@ -1,6 +1,6 @@
 import { useState, Fragment } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { StatusPedido, type PedidoComItens, UserRole } from "../../../../shared/schema";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { StatusPedido, type PedidoComItens, UserRole, TipoLancamento, type LancamentoCaixa } from "../../../../shared/schema";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { ShippingModal } from "./shipping-modal";
@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ExternalLink } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface OrderTableProps {
   pedidos: PedidoComItens[];
@@ -27,6 +28,16 @@ const statusLabels: Record<number, { label: string; variant: "secondary" | "defa
   [StatusPedido.Enviado]: { label: "Enviado", variant: "default" },
   [StatusPedido.Concluido]: { label: "Concluído", variant: "default" },
   [StatusPedido.Cancelado]: { label: "Cancelado", variant: "destructive" },
+};
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
 export function OrderTable({ pedidos }: OrderTableProps) {
@@ -96,16 +107,6 @@ export function OrderTable({ pedidos }: OrderTableProps) {
     setPaymentModal({
       isOpen: false,
       pedido: null,
-    });
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
     });
   };
 
@@ -261,14 +262,20 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                 {expandedId === pedido.id && (
                   <TableRow className="bg-gray-50" data-testid={`row-itens-${pedido.id}`}>
                     <TableCell colSpan={7}>
-                      <ul className="space-y-1">
-                        {pedido.itens.map((item) => (
-                          <li key={item.id} className="flex justify-center gap-2 text-sm">
-                            <span>{item.produto.nome}</span>
-                            <span className="text-gray-600">Qtd: {item.quantidade}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-900 mb-2">Itens</h4>
+                          <ul className="space-y-1">
+                            {pedido.itens.map((item) => (
+                              <li key={item.id} className="flex justify-center gap-2 text-sm">
+                                <span>{item.produto.nome}</span>
+                                <span className="text-gray-600">Qtd: {item.quantidade}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <PaymentHistory pedidoId={pedido.id} />
+                      </div>
                     </TableCell>
                   </TableRow>
                 )}
@@ -296,6 +303,63 @@ export function OrderTable({ pedidos }: OrderTableProps) {
         onClose={closePaymentModal}
         pedido={paymentModal.pedido}
       />
+    </div>
+  );
+}
+
+function PaymentHistory({ pedidoId }: { pedidoId: string }) {
+  const { data: lancamentos = [], isLoading } = useQuery({
+    queryKey: ["/api/caixa/lancamentos", pedidoId],
+    queryFn: () => api.caixa.lancamentos(undefined, undefined, pedidoId),
+    enabled: !!pedidoId,
+  });
+
+  const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
+
+  const pagamentos = (lancamentos as LancamentoCaixa[]).filter(
+    (l) => l.tipo === TipoLancamento.Entrada
+  );
+
+  if (isLoading) {
+    return <p className="text-sm text-gray-500">Carregando pagamentos...</p>;
+  }
+
+  if (pagamentos.length === 0) {
+    return <p className="text-sm text-gray-500">Nenhum pagamento registrado</p>;
+  }
+
+  return (
+    <div>
+      <h4 className="text-sm font-medium text-gray-900 mb-2">Pagamentos</h4>
+      <ul className="space-y-4">
+        {pagamentos.map((pagamento) => (
+          <li key={pagamento.id} className="text-sm text-gray-700">
+            <p>
+              Pago em {formatDate(pagamento.data)} - R$ {pagamento.valor
+                .toFixed(2)
+                .replace('.', ',')}
+            </p>
+            {pagamento.comprovante && (
+              <img
+                src={pagamento.comprovante}
+                alt="Comprovante"
+                className="mt-2 w-32 h-auto cursor-pointer border rounded"
+                onClick={() => setSelectedReceipt(pagamento.comprovante!)}
+              />
+            )}
+          </li>
+        ))}
+      </ul>
+      <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Comprovante</DialogTitle>
+          </DialogHeader>
+          {selectedReceipt && (
+            <img src={selectedReceipt} alt="Comprovante" className="w-full h-auto" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
