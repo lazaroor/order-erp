@@ -134,6 +134,22 @@ class SQLiteStorage implements IStorage {
         (2, 'SUPORTE_GRANDE', 35.00, 15.00, 1);
       `);
     }
+
+    // Seed default admin user
+    const adminExists = this.db
+      .prepare('SELECT COUNT(*) as count FROM usuarios WHERE nome = ?')
+      .get('admin') as { count: number };
+
+    if (adminExists.count === 0) {
+      const maxUserId = this.db
+        .prepare('SELECT MAX(id) as maxId FROM usuarios')
+        .get() as { maxId: number | null };
+      const nextUserId = (maxUserId?.maxId || 0) + 1;
+
+      this.db
+        .prepare('INSERT INTO usuarios (id, nome, role) VALUES (?, ?, ?)')
+        .run(nextUserId, 'admin', 'Admin');
+    }
   }
 
   async getProdutos(): Promise<Produto[]> {
