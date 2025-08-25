@@ -31,7 +31,11 @@ export function TransactionForm() {
         title: "Sucesso",
         description: "Lançamento criado com sucesso!",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/caixa"] });
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          typeof query.queryKey[0] === "string" &&
+          query.queryKey[0].startsWith("/api/caixa"),
+      });
       form.reset({
         tipo: TipoLancamento.Entrada,
         categoria: "",
