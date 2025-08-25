@@ -61,7 +61,7 @@ export const lancamentosCaixa = sqliteTable("lancamentos_caixa", {
 
 export const usuarios = sqliteTable("usuarios", {
   id: integer("id").primaryKey(),
-  nome: text("nome").notNull(),
+  nome: text("nome").notNull().unique(),
   role: text("role").notNull(),
 });
 

@@ -45,6 +45,7 @@ export interface IStorage {
 
   // Usuários
   createUsuario(usuario: InsertUsuario): Promise<Usuario>;
+  getUsuarios(): Promise<Usuario[]>;
 }
 
 class SQLiteStorage implements IStorage {
@@ -107,9 +108,11 @@ class SQLiteStorage implements IStorage {
 
       CREATE TABLE IF NOT EXISTS usuarios (
         id INTEGER PRIMARY KEY,
-        nome TEXT NOT NULL,
+        nome TEXT NOT NULL UNIQUE,
         role TEXT NOT NULL
       );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_nome ON usuarios (nome);
     `);
 
     // Ensure comprovante column exists for existing databases
@@ -374,8 +377,7 @@ class SQLiteStorage implements IStorage {
     return query.orderBy(desc(lancamentosCaixa.data)).all();
   }
 
-  async getUsuarios(start?: string, end?: string, pedidoId?: string): Promise<Usuario[]> {
-
+  async getUsuarios(): Promise<Usuario[]> {
     let query = this.drizzle.select().from(usuarios);
     return query.all();
   }
@@ -398,14 +400,26 @@ class SQLiteStorage implements IStorage {
   }
 
   async createUsuario(usuario: InsertUsuario): Promise<Usuario> {
+    const existing = this.drizzle
+      .select()
+      .from(usuarios)
+      .where(eq(usuarios.nome, usuario.nome))
+      .get();
+    if (existing) {
+      throw new Error('Usuário já existe');
+    }
+
     const maxId = this.db.prepare('SELECT MAX(id) as maxId FROM usuarios').get() as { maxId: number | null };
     const nextId = (maxId?.maxId || 0) + 1;
 
-    this.drizzle.insert(usuarios).values({
-      id: nextId,
-      nome: usuario.nome,
-      role: usuario.role,
-    }).run();
+    this.drizzle
+      .insert(usuarios)
+      .values({
+        id: nextId,
+        nome: usuario.nome,
+        role: usuario.role,
+      })
+      .run();
 
     const result = this.drizzle.select().from(usuarios).where(eq(usuarios.id, nextId)).get();
     return result!;

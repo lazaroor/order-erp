@@ -174,6 +174,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
       }
+      if (error instanceof Error && error.message === "Usuário já existe") {
+        return res.status(409).json({ message: "Nome de usuário já existe" });
+      }
       res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
