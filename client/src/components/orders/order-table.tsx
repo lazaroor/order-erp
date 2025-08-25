@@ -110,6 +110,23 @@ export function OrderTable({ pedidos }: OrderTableProps) {
     });
   };
 
+  const calculateRestante = (pedido: PedidoComItens) => {
+    const { data: lancamentos = [] } = useQuery({
+                  queryKey: ["/api/caixa/lancamentos", pedido?.id],
+                  queryFn: () => api.caixa.lancamentos(undefined, undefined, pedido!.id),
+                  enabled: !!pedido,
+                });
+
+    const totalPedido = pedido
+        ? pedido.itens.reduce((sum, item) => sum + item.quantidade * item.precoUnitario, 0)
+        : 0;
+    const totalPago = lancamentos
+      .filter((l) => l.tipo === TipoLancamento.Entrada)
+      .reduce((sum, l) => sum + l.valor, 0);
+    const restante = totalPedido - totalPago;
+    return restante;
+  };
+
   const calculateTotal = (pedido: PedidoComItens) => {
     return pedido.itens.reduce((sum, item) => sum + (item.quantidade * item.precoUnitario), 0);
   };
@@ -149,6 +166,9 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                 Valor Total
               </TableHead>
               <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Valor Restante
+              </TableHead>
+              <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Rastreio
               </TableHead>
               <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -163,6 +183,7 @@ export function OrderTable({ pedidos }: OrderTableProps) {
             {pedidos.map((pedido) => {
               const statusInfo = statusLabels[pedido.status];
               const total = calculateTotal(pedido);
+              const restante = calculateRestante(pedido);
 
               return (
                 <Fragment key={pedido.id}>
@@ -189,6 +210,11 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                   <TableCell>
                     <div className="text-sm font-medium text-gray-900" data-testid={`text-total-${pedido.id}`}>
                       R$ {total.toFixed(2).replace('.', ',')}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium text-gray-900" data-testid={`text-restante-${pedido.id}`}>
+                      R$ {restante.toFixed(2).replace('.', ',')}
                     </div>
                   </TableCell>
                   <TableCell>
