@@ -42,6 +42,11 @@ export function OrderForm({ isOpen, onClose }: OrderFormProps) {
         description: "Pedido criado com sucesso!",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/pedidos"] });
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          typeof query.queryKey[0] === "string" &&
+          query.queryKey[0].startsWith("/api/caixa"),
+      });
       onClose();
       form.reset();
       setQuantities({});
