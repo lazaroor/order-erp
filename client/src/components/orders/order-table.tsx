@@ -191,9 +191,11 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                   <TableCell>
                     {pedido.codigoRastreio ? (
                       <div className="flex items-center space-x-1">
-                        <span className="text-sm text-gray-900 font-mono" data-testid={`text-rastreio-${pedido.id}`}>
-                          {pedido.codigoRastreio}
-                        </span>
+                        <a href={`https://websro.app/?codigo=${pedido.codigoRastreio}&Z_ACTION=Pesquisar`} target="_blank" rel="noopener noreferrer">
+                          <span className="text-sm text-gray-900 font-mono" data-testid={`text-rastreio-${pedido.id}`}>
+                            {pedido.codigoRastreio}
+                          </span>
+                        </a>
                         <ExternalLink className="w-3 h-3 text-gray-400" />
                       </div>
                     ) : (
