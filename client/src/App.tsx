@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import Orders from "@/pages/orders";
 import CashFlow from "@/pages/cash-flow";
 import Products from "@/pages/products";
+import Users from "@/pages/users";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/" component={Orders} />
       <Route path="/caixa" component={CashFlow} />
       <Route path="/produtos" component={Products} />
+      <Route path="/usuarios" component={Users} />
       <Route component={NotFound} />
     </Switch>
   );
