@@ -2,11 +2,12 @@ import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
-import { 
-  produtos, 
-  pedidos, 
-  itensPedido, 
+import {
+  produtos,
+  pedidos,
+  itensPedido,
   lancamentosCaixa,
+  usuarios,
   StatusPedido,
   TipoLancamento,
   type Produto,
@@ -17,7 +18,9 @@ import {
   type ResumoCaixa,
   type InsertProduto,
   type InsertPedido,
-  type InsertLancamentoCaixa
+  type InsertLancamentoCaixa,
+  type InsertUsuario,
+  type Usuario
 } from "../shared/schema";
 import path from 'path';
 import fs from 'fs';
@@ -39,6 +42,9 @@ export interface IStorage {
   getLancamentosCaixa(start?: string, end?: string, pedidoId?: string): Promise<LancamentoCaixa[]>;
   createLancamentoCaixa(lancamento: InsertLancamentoCaixa): Promise<LancamentoCaixa>;
   getResumoCaixa(start?: string, end?: string): Promise<ResumoCaixa>;
+
+  // Usuários
+  createUsuario(usuario: InsertUsuario): Promise<Usuario>;
 }
 
 class SQLiteStorage implements IStorage {
@@ -97,6 +103,12 @@ class SQLiteStorage implements IStorage {
         data TEXT NOT NULL DEFAULT (datetime('now')),
         pedido_id TEXT REFERENCES pedidos(id),
         comprovante TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS usuarios (
+        id INTEGER PRIMARY KEY,
+        nome TEXT NOT NULL,
+        role TEXT NOT NULL
       );
     `);
 
@@ -376,6 +388,20 @@ class SQLiteStorage implements IStorage {
     }).run();
 
     const result = this.drizzle.select().from(lancamentosCaixa).where(eq(lancamentosCaixa.id, id)).get();
+    return result!;
+  }
+
+  async createUsuario(usuario: InsertUsuario): Promise<Usuario> {
+    const maxId = this.db.prepare('SELECT MAX(id) as maxId FROM usuarios').get() as { maxId: number | null };
+    const nextId = (maxId?.maxId || 0) + 1;
+
+    this.drizzle.insert(usuarios).values({
+      id: nextId,
+      nome: usuario.nome,
+      role: usuario.role,
+    }).run();
+
+    const result = this.drizzle.select().from(usuarios).where(eq(usuarios.id, nextId)).get();
     return result!;
   }
 
