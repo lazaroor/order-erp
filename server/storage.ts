@@ -46,6 +46,7 @@ export interface IStorage {
   // Usuários
   createUsuario(usuario: InsertUsuario): Promise<Usuario>;
   getUsuarios(): Promise<Usuario[]>;
+  getUsuarioByNome(nome: string): Promise<Usuario | undefined>;
 }
 
 class SQLiteStorage implements IStorage {
@@ -380,6 +381,15 @@ class SQLiteStorage implements IStorage {
   async getUsuarios(): Promise<Usuario[]> {
     let query = this.drizzle.select().from(usuarios);
     return query.all();
+  }
+
+  async getUsuarioByNome(nome: string): Promise<Usuario | undefined> {
+    const result = this.drizzle
+      .select()
+      .from(usuarios)
+      .where(eq(usuarios.nome, nome))
+      .get();
+    return result || undefined;
   }
 
   async createLancamentoCaixa(lancamento: InsertLancamentoCaixa): Promise<LancamentoCaixa> {

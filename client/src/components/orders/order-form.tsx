@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { insertPedidoSchema, type InsertPedido, type Produto } from "../../../../shared/schema";
+import { insertPedidoSchema, type InsertPedido, type Produto, UserRole } from "../../../../shared/schema";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ export function OrderForm({ isOpen, onClose }: OrderFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [quantities, setQuantities] = useState<Record<number, number>>({});
+  const { user } = useAuth();
 
   const { data: produtos = [] } = useQuery({
     queryKey: ["/api/produtos"],
@@ -185,20 +187,24 @@ export function OrderForm({ isOpen, onClose }: OrderFormProps) {
                   R$ {summary.receita.toFixed(2).replace('.', ',')}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">COGS Estimado:</span>
-                <span className="font-medium text-gray-900" data-testid="text-cogs-estimado">
-                  R$ {summary.cogs.toFixed(2).replace('.', ',')}
-                </span>
-              </div>
-              <div className="border-t pt-2">
-                <div className="flex justify-between text-sm font-medium">
-                  <span className="text-gray-900">Margem Estimada:</span>
-                  <span className="text-green-600" data-testid="text-margem-estimada">
-                    R$ {summary.margem.toFixed(2).replace('.', ',')}
-                  </span>
-                </div>
-              </div>
+              {user?.role === UserRole.Admin && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">COGS Estimado:</span>
+                    <span className="font-medium text-gray-900" data-testid="text-cogs-estimado">
+                      R$ {summary.cogs.toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
+                  <div className="border-t pt-2">
+                    <div className="flex justify-between text-sm font-medium">
+                      <span className="text-gray-900">Margem Estimada:</span>
+                      <span className="text-green-600" data-testid="text-margem-estimada">
+                        R$ {summary.margem.toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
