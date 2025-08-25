@@ -1,7 +1,6 @@
 import { useForm } from "react-hook-form";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import { insertUsuarioSchema, type InsertUsuario, UserRole } from "../../../shared/schema";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +14,7 @@ import UserTable from "@/components/orders/user-table";
 
 export default function Users() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const form = useForm<InsertUsuario>({
     resolver: zodResolver(insertUsuarioSchema),
@@ -32,6 +32,7 @@ export default function Users() {
         description: "Usuário criado com sucesso!",
       });
       form.reset({ nome: "", role: UserRole.Usuario });
+      queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
     },
     onError: (error: any) => {
       toast({
