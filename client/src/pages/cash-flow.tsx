@@ -7,10 +7,13 @@ import { CashDashboard } from "@/components/cash-flow/cash-dashboard";
 import { TransactionForm } from "@/components/cash-flow/transaction-form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Image as ImageIcon } from "lucide-react";
 
 export default function CashFlow() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
 
   const { data: lancamentos = [], isLoading } = useQuery({
     queryKey: ["/api/caixa/lancamentos", startDate, endDate],
@@ -87,21 +90,41 @@ export default function CashFlow() {
                   </div>
                 ) : (
                   lancamentos.map((lancamento: LancamentoCaixa) => (
-                    <div key={lancamento.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg" data-testid={`transaction-${lancamento.id}`}>
+                    <div
+                      key={lancamento.id}
+                      className={`flex items-center justify-between p-3 bg-gray-50 rounded-lg ${
+                        lancamento.comprovante ? 'cursor-pointer hover:bg-gray-100' : ''
+                      }`}
+                      data-testid={`transaction-${lancamento.id}`}
+                      onClick={() => {
+                        if (lancamento.comprovante) {
+                          setSelectedReceipt(lancamento.comprovante);
+                        }
+                      }}
+                    >
                       <div className="flex items-center space-x-3">
-                        <div 
+                        <div
                           className={`w-2 h-2 rounded-full ${
                             lancamento.tipo === TipoLancamento.Entrada ? 'bg-green-500' : 'bg-red-500'
                           }`}
                         />
                         <div>
-                          <p className="text-sm font-medium text-gray-900" data-testid={`text-categoria-${lancamento.id}`}>
+                          <p
+                            className="text-sm font-medium text-gray-900"
+                            data-testid={`text-categoria-${lancamento.id}`}
+                          >
                             {lancamento.categoria}
                           </p>
-                          <p className="text-xs text-gray-500" data-testid={`text-data-${lancamento.id}`}>
+                          <p
+                            className="text-xs text-gray-500"
+                            data-testid={`text-data-${lancamento.id}`}
+                          >
                             {formatDate(lancamento.data)}
                           </p>
                         </div>
+                        {lancamento.comprovante && (
+                          <ImageIcon className="w-4 h-4 text-gray-400" />
+                        )}
                       </div>
                       <div data-testid={`text-valor-${lancamento.id}`}>
                         {formatCurrency(lancamento.valor, lancamento.tipo)}
@@ -114,6 +137,16 @@ export default function CashFlow() {
           </Card>
         </div>
       </div>
+      <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Comprovante</DialogTitle>
+          </DialogHeader>
+          {selectedReceipt && (
+            <img src={selectedReceipt} alt="Comprovante" className="w-full h-auto" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

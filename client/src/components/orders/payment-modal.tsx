@@ -13,6 +13,7 @@ import { TipoLancamento, type PedidoComItens } from "../../../../shared/schema";
 
 const paymentSchema = z.object({
   valor: z.number().min(0.01, "Valor deve ser maior que zero"),
+  comprovante: z.string().optional(),
 });
 
 type PaymentData = z.infer<typeof paymentSchema>;
@@ -29,7 +30,7 @@ export function PaymentModal({ isOpen, onClose, pedido }: PaymentModalProps) {
 
   const form = useForm<PaymentData>({
     resolver: zodResolver(paymentSchema),
-    defaultValues: { valor: 0 },
+    defaultValues: { valor: 0, comprovante: undefined },
   });
 
   const { data: lancamentos = [] } = useQuery({
@@ -53,6 +54,7 @@ export function PaymentModal({ isOpen, onClose, pedido }: PaymentModalProps) {
         categoria: "Receita de Venda",
         valor: data.valor,
         pedidoId: pedido!.id,
+        comprovante: data.comprovante,
       });
     },
     onSuccess: async (_, variables) => {
@@ -75,7 +77,7 @@ export function PaymentModal({ isOpen, onClose, pedido }: PaymentModalProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/pedidos"] });
       queryClient.invalidateQueries({ queryKey: ["/api/caixa"] });
       queryClient.invalidateQueries({ queryKey: ["/api/caixa/lancamentos", pedido!.id] });
-      form.reset({ valor: 0 });
+      form.reset({ valor: 0, comprovante: undefined });
       onClose();
     },
     onError: (error: any) => {
@@ -100,7 +102,7 @@ export function PaymentModal({ isOpen, onClose, pedido }: PaymentModalProps) {
   };
 
   const handleClose = () => {
-    form.reset({ valor: 0 });
+    form.reset({ valor: 0, comprovante: undefined });
     onClose();
   };
 
@@ -149,6 +151,28 @@ export function PaymentModal({ isOpen, onClose, pedido }: PaymentModalProps) {
               {form.formState.errors.valor && (
                 <p className="text-sm text-red-600 mt-1">{form.formState.errors.valor.message}</p>
               )}
+            </div>
+
+            <div>
+              <Label htmlFor="comprovante" className="block text-sm font-medium text-gray-700 mb-1">
+                Comprovante (imagem)
+              </Label>
+              <Input
+                id="comprovante"
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      form.setValue("comprovante", reader.result as string);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+                data-testid="input-comprovante"
+              />
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
