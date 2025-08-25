@@ -181,6 +181,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/login", async (req, res) => {
+    try {
+      const { nome } = req.body;
+      if (!nome) {
+        return res.status(400).json({ message: "Nome de usuário é obrigatório" });
+      }
+      const usuario = await storage.getUsuarioByNome(nome);
+      if (!usuario) {
+        return res.status(401).json({ message: "Usuário não encontrado" });
+      }
+      res.json(usuario);
+    } catch (error) {
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
   app.get("/api/usuarios/", async (req, res) => {
     try {
       const usuarios = await storage.getUsuarios();

@@ -91,4 +91,11 @@ export const api = {
       return fetch("/api/usuarios").then(res => res.json());
     },
   },
+
+  auth: {
+    login: async (nome: string): Promise<Usuario> => {
+      const response = await apiRequest("POST", "/api/login", { nome });
+      return response.json();
+    },
+  },
 };

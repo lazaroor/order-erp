@@ -9,20 +9,34 @@ import CashFlow from "@/pages/cash-flow";
 import Products from "@/pages/products";
 import Users from "@/pages/users";
 import NotFound from "@/pages/not-found";
+import Login from "@/pages/login";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { UserRole } from "../../shared/schema";
 
 function Router() {
+  const { user } = useAuth();
   return (
     <Switch>
       <Route path="/" component={Orders} />
-      <Route path="/caixa" component={CashFlow} />
-      <Route path="/produtos" component={Products} />
-      <Route path="/usuarios" component={Users} />
+      {user?.role === UserRole.Admin && (
+        <>
+          <Route path="/caixa" component={CashFlow} />
+          <Route path="/produtos" component={Products} />
+          <Route path="/usuarios" component={Users} />
+        </>
+      )}
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-function App() {
+function AppContent() {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <Login />;
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -36,4 +50,10 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}

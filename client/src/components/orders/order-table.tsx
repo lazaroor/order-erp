@@ -1,12 +1,13 @@
 import { useState, Fragment } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { StatusPedido, type PedidoComItens } from "../../../../shared/schema";
+import { StatusPedido, type PedidoComItens, UserRole } from "../../../../shared/schema";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { ShippingModal } from "./shipping-modal";
 import { PaymentModal } from "./payment-modal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Table,
   TableBody,
@@ -31,6 +32,7 @@ const statusLabels: Record<number, { label: string; variant: "secondary" | "defa
 export function OrderTable({ pedidos }: OrderTableProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [shippingModal, setShippingModal] = useState<{ isOpen: boolean; pedidoId: string; pedidoNumero: string }>({
     isOpen: false,
     pedidoId: "",
@@ -211,7 +213,7 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      {canTransition(pedido.status, 'Enviado') && (
+                      {canTransition(pedido.status, 'Enviado') && user?.role === UserRole.Admin && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -235,7 +237,7 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                           Concluir
                         </Button>
                       )}
-                      {canTransition(pedido.status, 'Cancelado') && (
+                      {canTransition(pedido.status, 'Cancelado') && user?.role === UserRole.Admin && (
                         <Button
                           size="sm"
                           variant="outline"
