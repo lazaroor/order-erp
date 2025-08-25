@@ -1,6 +1,6 @@
 # Sistema de Controle de Pedidos e Fluxo de Caixa
 
-Sistema completo para gerenciamento de pedidos e controle financeiro desenvolvido com Node.js, React e SQLite.
+Sistema completo para gerenciamento de pedidos e controle financeiro desenvolvido com Node.js, React e Supabase (PostgreSQL).
 
 ## Funcionalidades
 
@@ -12,10 +12,18 @@ Sistema completo para gerenciamento de pedidos e controle financeiro desenvolvid
 
 ## Tecnologias
 
-- **Backend**: Node.js, Express.js, SQLite
+- **Backend**: Node.js, Express.js
 - **Frontend**: React, TypeScript, Tailwind CSS
-- **Database**: SQLite com schema Drizzle ORM
+- **Database**: Supabase (PostgreSQL)
 - **UI**: Shadcn/ui components
+
+## Configuração do Supabase
+
+1. Crie um projeto no [Supabase](https://supabase.com/).
+2. Defina as variáveis de ambiente:
+   - `SUPABASE_URL`: URL do projeto Supabase
+   - `SUPABASE_KEY`: API key do projeto
+3. Crie as tabelas `produtos`, `pedidos`, `itens_pedido`, `lancamentos_caixa` e `usuarios` com os campos utilizados no projeto (mesma estrutura do antigo banco SQLite).
 
 ## Instalação e Execução
 
@@ -27,3 +35,4 @@ npm install
 
 # Executar em modo desenvolvimento
 npm run dev
+```
