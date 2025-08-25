@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { insertLancamentoCaixaSchema, TipoLancamento, type InsertLancamentoCaixa } from "@shared/schema";
+import { insertLancamentoCaixaSchema, TipoLancamento, type InsertLancamentoCaixa } from "../../../../shared/schema";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -73,7 +73,6 @@ export function TransactionForm() {
               <SelectContent>
                 <SelectItem value={TipoLancamento.Entrada.toString()}>Entrada</SelectItem>
                 <SelectItem value={TipoLancamento.Saida.toString()}>Saída</SelectItem>
-                <SelectItem value={TipoLancamento.Provisao.toString()}>Provisão</SelectItem>
               </SelectContent>
             </Select>
           </div>

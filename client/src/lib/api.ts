@@ -7,7 +7,7 @@ import type {
   InsertPedido, 
   InsertLancamentoCaixa,
   InsertProduto
-} from "@shared/schema";
+} from "../../../shared/schema";
 
 export const api = {
   // Produtos

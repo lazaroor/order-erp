@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit } from "lucide-react";
-import type { Produto } from "@shared/schema";
+import type { Produto } from "../../../shared/schema";
 
 export default function Products() {
   const [isModalOpen, setIsModalOpen] = useState(false);

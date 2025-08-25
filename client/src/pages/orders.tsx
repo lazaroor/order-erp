@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { StatusPedido } from "@shared/schema";
+import { StatusPedido } from "../../../shared/schema";
 import { api } from "@/lib/api";
 import { Header } from "@/components/layout/header";
 import { OrderForm } from "@/components/orders/order-form";
@@ -14,7 +14,6 @@ const statusFilters = [
   { label: "Todos", value: undefined, variant: "default" as const },
   { label: "Em Produção", value: StatusPedido.EmProducao, variant: "secondary" as const },
   { label: "Enviado", value: StatusPedido.Enviado, variant: "default" as const },
-  { label: "Aguardando Pagamento", value: StatusPedido.AguardandoPagamento, variant: "secondary" as const },
   { label: "Concluído", value: StatusPedido.Concluido, variant: "default" as const },
   { label: "Cancelado", value: StatusPedido.Cancelado, variant: "destructive" as const },
 ];

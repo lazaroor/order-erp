@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { StatusPedido, type PedidoComItens } from "@shared/schema";
+import { StatusPedido, type PedidoComItens } from "../../../../shared/schema";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { ShippingModal } from "./shipping-modal";
@@ -21,7 +21,6 @@ interface OrderTableProps {
 }
 
 const statusLabels: Record<number, { label: string; variant: "secondary" | "default" | "destructive" }> = {
-  [StatusPedido.AguardandoPagamento]: { label: "Aguardando Pagamento", variant: "secondary" },
   [StatusPedido.EmProducao]: { label: "Em Produção", variant: "secondary" },
   [StatusPedido.Enviado]: { label: "Enviado", variant: "default" },
   [StatusPedido.Concluido]: { label: "Concluído", variant: "default" },
@@ -91,10 +90,8 @@ export function OrderTable({ pedidos }: OrderTableProps) {
     switch (newStatus) {
       case 'Enviado':
         return currentStatus === StatusPedido.EmProducao;
-      case 'AguardandoPagamento':
-        return currentStatus === StatusPedido.Enviado;
       case 'Concluido':
-        return currentStatus === StatusPedido.AguardandoPagamento;
+        return currentStatus === StatusPedido.Enviado;
       case 'Cancelado':
         return currentStatus !== StatusPedido.Concluido;
       default:
@@ -191,18 +188,6 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                           Enviar
                         </Button>
                       )}
-                      {canTransition(pedido.status, 'AguardandoPagamento') && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateStatusMutation.mutate({ id: pedido.id, status: 'AguardandoPagamento' })}
-                          disabled={updateStatusMutation.isPending}
-                          className="text-blue-600 hover:text-blue-900"
-                          data-testid={`button-instalar-${pedido.id}`}
-                        >
-                          Instalar
-                        </Button>
-                      )}
                       {canTransition(pedido.status, 'Concluido') && (
                         <Button
                           size="sm"
@@ -210,9 +195,9 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                           onClick={() => updateStatusMutation.mutate({ id: pedido.id, status: 'Concluido' })}
                           disabled={updateStatusMutation.isPending}
                           className="text-green-600 hover:text-green-900"
-                          data-testid={`button-confirmar-${pedido.id}`}
+                          data-testid={`button-concluir-${pedido.id}`}
                         >
-                          Confirmar Pgto
+                          Concluir
                         </Button>
                       )}
                       {canTransition(pedido.status, 'Cancelado') && (

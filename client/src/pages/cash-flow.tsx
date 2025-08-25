@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { TipoLancamento, type LancamentoCaixa } from "@shared/schema";
+import { TipoLancamento, type LancamentoCaixa } from "../../../shared/schema";
 import { api } from "@/lib/api";
 import { Header } from "@/components/layout/header";
 import { CashDashboard } from "@/components/cash-flow/cash-dashboard";
@@ -26,13 +26,8 @@ export default function CashFlow() {
   };
 
   const formatCurrency = (value: number, tipo: number) => {
-    const symbol = tipo === TipoLancamento.Entrada ? '+' : tipo === TipoLancamento.Saida ? '-' : '~';
-    const colorClass =
-      tipo === TipoLancamento.Entrada
-        ? 'text-green-600'
-        : tipo === TipoLancamento.Saida
-        ? 'text-red-600'
-        : 'text-yellow-600';
+    const symbol = tipo === TipoLancamento.Entrada ? '+' : '-';
+    const colorClass = tipo === TipoLancamento.Entrada ? 'text-green-600' : 'text-red-600';
     return (
       <span className={`text-sm font-medium ${colorClass}`}>
         {symbol}R$ {value.toFixed(2).replace('.', ',')}
@@ -96,11 +91,7 @@ export default function CashFlow() {
                       <div className="flex items-center space-x-3">
                         <div 
                           className={`w-2 h-2 rounded-full ${
-                            lancamento.tipo === TipoLancamento.Entrada
-                              ? 'bg-green-500'
-                              : lancamento.tipo === TipoLancamento.Saida
-                              ? 'bg-red-500'
-                              : 'bg-yellow-500'
+                            lancamento.tipo === TipoLancamento.Entrada ? 'bg-green-500' : 'bg-red-500'
                           }`}
                         />
                         <div>
