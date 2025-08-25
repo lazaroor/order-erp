@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertPedidoSchema, insertLancamentoCaixaSchema, insertProdutoSchema, StatusPedido } from "../shared/schema";
+import { insertPedidoSchema, insertLancamentoCaixaSchema, insertProdutoSchema, insertUsuarioSchema, StatusPedido } from "../shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -160,6 +160,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const resumo = await storage.getResumoCaixa(start as string, end as string);
       res.json(resumo);
     } catch (error) {
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  // Admin endpoints
+  app.post("/api/admin/usuarios", async (req, res) => {
+    try {
+      const validatedData = insertUsuarioSchema.parse(req.body);
+      const usuario = await storage.createUsuario(validatedData);
+      res.status(201).json(usuario);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
+      }
       res.status(500).json({ message: "Erro interno do servidor" });
     }
   });

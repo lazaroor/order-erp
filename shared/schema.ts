@@ -16,6 +16,11 @@ export const TipoLancamento = {
   Saida: 2
 } as const;
 
+export const UserRole = {
+  Admin: "Admin",
+  Usuario: "Usuario",
+} as const;
+
 // Tables
 export const produtos = sqliteTable("produtos", {
   id: integer("id").primaryKey(),
@@ -54,6 +59,12 @@ export const lancamentosCaixa = sqliteTable("lancamentos_caixa", {
   comprovante: text("comprovante"),
 });
 
+export const usuarios = sqliteTable("usuarios", {
+  id: integer("id").primaryKey(),
+  nome: text("nome").notNull(),
+  role: text("role").notNull(),
+});
+
 // Insert Schemas
 export const insertProdutoSchema = createInsertSchema(produtos).omit({
   id: true,
@@ -84,6 +95,10 @@ export const insertLancamentoCaixaSchema = createInsertSchema(lancamentosCaixa).
   comprovante: z.string().optional(),
 });
 
+export const insertUsuarioSchema = createInsertSchema(usuarios)
+  .omit({ id: true })
+  .extend({ role: z.enum([UserRole.Admin, UserRole.Usuario]) });
+
 // Types
 export type InsertProduto = z.infer<typeof insertProdutoSchema>;
 export type Produto = typeof produtos.$inferSelect;
@@ -96,6 +111,9 @@ export type ItemPedido = typeof itensPedido.$inferSelect;
 
 export type InsertLancamentoCaixa = z.infer<typeof insertLancamentoCaixaSchema>;
 export type LancamentoCaixa = typeof lancamentosCaixa.$inferSelect;
+
+export type InsertUsuario = z.infer<typeof insertUsuarioSchema>;
+export type Usuario = typeof usuarios.$inferSelect;
 
 // API Response Types
 export type PedidoComItens = Pedido & {
