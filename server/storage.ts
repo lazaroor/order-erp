@@ -354,6 +354,7 @@ class SQLiteStorage implements IStorage {
         .where(eq(pedidos.id, id))
         .run();
 
+        
       // Se mudando para Enviado, criar lançamento do frete
       if (novoStatus === StatusPedido.Enviado && custoFrete && custoFrete > 0) {
         this.drizzle.insert(lancamentosCaixa).values({
