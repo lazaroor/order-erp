@@ -1,17 +1,8 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
-  produtos,
-  pedidos,
-  itensPedido,
-  lancamentosCaixa,
-  usuarios,
   StatusPedido,
   TipoLancamento,
   type Produto,
-  type Pedido,
   type ItemPedido,
   type LancamentoCaixa,
   type PedidoComItens,
@@ -20,10 +11,8 @@ import {
   type InsertPedido,
   type InsertLancamentoCaixa,
   type InsertUsuario,
-  type Usuario
+  type Usuario,
 } from "../shared/schema";
-import path from 'path';
-import fs from 'fs';
 
 export interface IStorage {
   // Produtos
@@ -31,13 +20,13 @@ export interface IStorage {
   getProduto(id: number): Promise<Produto | undefined>;
   createProduto(produto: InsertProduto): Promise<Produto>;
   updateProduto(id: number, produto: InsertProduto): Promise<Produto | undefined>;
-  
+
   // Pedidos
   getPedidos(status?: number, start?: string, end?: string): Promise<PedidoComItens[]>;
   getPedido(id: string): Promise<PedidoComItens | undefined>;
   createPedido(pedido: InsertPedido): Promise<PedidoComItens>;
   updatePedidoStatus(id: string, novoStatus: number, codigoRastreio?: string, custoFrete?: number): Promise<PedidoComItens | undefined>;
-  
+
   // Caixa
   getLancamentosCaixa(start?: string, end?: string, pedidoId?: string): Promise<LancamentoCaixa[]>;
   createLancamentoCaixa(lancamento: InsertLancamentoCaixa): Promise<LancamentoCaixa>;
@@ -49,278 +38,210 @@ export interface IStorage {
   getUsuarioByNome(nome: string): Promise<Usuario | undefined>;
 }
 
-class SQLiteStorage implements IStorage {
-  private db: Database.Database;
-  private drizzle: ReturnType<typeof drizzle>;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
 
-  constructor() {
-    // Ensure App_Data directory exists
-    const appDataDir = path.join(process.cwd(), 'App_Data');
-    if (!fs.existsSync(appDataDir)) {
-      fs.mkdirSync(appDataDir, { recursive: true });
-    }
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Supabase URL or key missing in environment variables');
+}
 
-    const dbPath = path.join(appDataDir, 'pedidos.db');
-    this.db = new Database(dbPath);
-    this.drizzle = drizzle(this.db);
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-    this.initializeDatabase();
-  }
+function mapProduto(row: any): Produto {
+  return {
+    id: row.id,
+    nome: row.nome,
+    precoVenda: row.preco_venda,
+    custoUnitario: row.custo_unitario,
+    ativo: row.ativo,
+  };
+}
 
-  private initializeDatabase() {
-    // Create tables
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS produtos (
-        id INTEGER PRIMARY KEY,
-        nome TEXT NOT NULL,
-        preco_venda REAL NOT NULL,
-        custo_unitario REAL NOT NULL,
-        ativo INTEGER NOT NULL DEFAULT 1
-      );
+function mapItemPedido(row: any): ItemPedido {
+  return {
+    id: row.id,
+    pedidoId: row.pedido_id,
+    produtoId: row.produto_id,
+    quantidade: row.quantidade,
+    precoUnitario: row.preco_unitario,
+  };
+}
 
-      CREATE TABLE IF NOT EXISTS pedidos (
-        id TEXT PRIMARY KEY DEFAULT (hex(randomblob(16))),
-        numero TEXT NOT NULL UNIQUE,
-        cliente_nome TEXT,
-        status INTEGER NOT NULL DEFAULT 1,
-        codigo_rastreio TEXT,
-        custo_frete REAL DEFAULT 0,
-        criado_em TEXT NOT NULL DEFAULT (datetime('now')),
-        atualizado_em TEXT NOT NULL DEFAULT (datetime('now'))
-      );
+function mapLancamento(row: any): LancamentoCaixa {
+  return {
+    id: row.id,
+    tipo: row.tipo,
+    categoria: row.categoria,
+    valor: row.valor,
+    data: row.data,
+    pedidoId: row.pedido_id,
+    comprovante: row.comprovante ?? undefined,
+  };
+}
 
-      CREATE TABLE IF NOT EXISTS itens_pedido (
-        id TEXT PRIMARY KEY DEFAULT (hex(randomblob(16))),
-        pedido_id TEXT NOT NULL REFERENCES pedidos(id),
-        produto_id INTEGER NOT NULL REFERENCES produtos(id),
-        quantidade REAL NOT NULL,
-        preco_unitario REAL NOT NULL
-      );
+function mapUsuario(row: any): Usuario {
+  return {
+    id: row.id,
+    nome: row.nome,
+    role: row.role,
+  };
+}
 
-      CREATE TABLE IF NOT EXISTS lancamentos_caixa (
-        id TEXT PRIMARY KEY DEFAULT (hex(randomblob(16))),
-        tipo INTEGER NOT NULL,
-        categoria TEXT NOT NULL,
-        valor REAL NOT NULL,
-        data TEXT NOT NULL DEFAULT (datetime('now')),
-        pedido_id TEXT REFERENCES pedidos(id),
-        comprovante TEXT
-      );
-
-      CREATE TABLE IF NOT EXISTS usuarios (
-        id INTEGER PRIMARY KEY,
-        nome TEXT NOT NULL UNIQUE,
-        role TEXT NOT NULL
-      );
-
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_nome ON usuarios (nome);
-    `);
-
-    // Ensure comprovante column exists for existing databases
-    const lancamentoCols = this.db
-      .prepare("PRAGMA table_info(lancamentos_caixa)")
-      .all() as { name: string }[];
-    const hasComprovante = lancamentoCols.some((c) => c.name === "comprovante");
-    if (!hasComprovante) {
-      this.db.exec("ALTER TABLE lancamentos_caixa ADD COLUMN comprovante TEXT");
-    }
-
-    // Seed produtos
-    const produtoExists = this.db.prepare('SELECT COUNT(*) as count FROM produtos').get() as { count: number };
-    if (produtoExists.count === 0) {
-      this.db.exec(`
-        INSERT INTO produtos (id, nome, preco_venda, custo_unitario, ativo) VALUES
-        (1, 'SUPORTE_PEQUENO', 20.00, 8.00, 1),
-        (2, 'SUPORTE_GRANDE', 35.00, 15.00, 1);
-      `);
-    }
-
-    // Seed default admin user
-    const adminExists = this.db
-      .prepare('SELECT COUNT(*) as count FROM usuarios WHERE nome = ?')
-      .get('admin') as { count: number };
-
-    if (adminExists.count === 0) {
-      const maxUserId = this.db
-        .prepare('SELECT MAX(id) as maxId FROM usuarios')
-        .get() as { maxId: number | null };
-      const nextUserId = (maxUserId?.maxId || 0) + 1;
-
-      this.db
-        .prepare('INSERT INTO usuarios (id, nome, role) VALUES (?, ?, ?)')
-        .run(nextUserId, 'admin', 'Admin');
-    }
-  }
+class SupabaseStorage implements IStorage {
+  constructor(private db: SupabaseClient) {}
 
   async getProdutos(): Promise<Produto[]> {
-    return this.drizzle.select().from(produtos).where(eq(produtos.ativo, true)).all();
+    const { data, error } = await this.db
+      .from('produtos')
+      .select('*')
+      .eq('ativo', true);
+    if (error) throw error;
+    return (data ?? []).map(mapProduto);
   }
 
   async getProduto(id: number): Promise<Produto | undefined> {
-    const result = this.drizzle.select().from(produtos).where(eq(produtos.id, id)).get();
-    return result || undefined;
+    const { data, error } = await this.db
+      .from('produtos')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapProduto(data) : undefined;
   }
 
-  async createProduto(insertProduto: InsertProduto): Promise<Produto> {
-    // Get the next ID
-    const maxId = this.db.prepare('SELECT MAX(id) as maxId FROM produtos').get() as { maxId: number | null };
-    const nextId = (maxId?.maxId || 0) + 1;
-
-    this.drizzle.insert(produtos).values({
-      id: nextId,
-      nome: insertProduto.nome,
-      precoVenda: insertProduto.precoVenda,
-      custoUnitario: insertProduto.custoUnitario,
-      ativo: insertProduto.ativo ?? true,
-    }).run();
-
-    const result = this.drizzle.select().from(produtos).where(eq(produtos.id, nextId)).get();
-    return result!;
-  }
-
-  async updateProduto(id: number, insertProduto: InsertProduto): Promise<Produto | undefined> {
-    const existing = await this.getProduto(id);
-    if (!existing) return undefined;
-
-    this.drizzle
-      .update(produtos)
-      .set({
-        nome: insertProduto.nome,
-        precoVenda: insertProduto.precoVenda,
-        custoUnitario: insertProduto.custoUnitario,
-        ativo: insertProduto.ativo ?? true,
+  async createProduto(insert: InsertProduto): Promise<Produto> {
+    const { data, error } = await this.db
+      .from('produtos')
+      .insert({
+        nome: insert.nome,
+        preco_venda: insert.precoVenda,
+        custo_unitario: insert.custoUnitario,
+        ativo: insert.ativo ?? true,
       })
-      .where(eq(produtos.id, id))
-      .run();
+      .select()
+      .single();
+    if (error) throw error;
+    return mapProduto(data);
+  }
 
-    return await this.getProduto(id);
+  async updateProduto(id: number, insert: InsertProduto): Promise<Produto | undefined> {
+    const { data, error } = await this.db
+      .from('produtos')
+      .update({
+        nome: insert.nome,
+        preco_venda: insert.precoVenda,
+        custo_unitario: insert.custoUnitario,
+        ativo: insert.ativo ?? true,
+      })
+      .eq('id', id)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapProduto(data) : undefined;
   }
 
   async getPedidos(status?: number, start?: string, end?: string): Promise<PedidoComItens[]> {
-    const conditions = [];
-    if (status) conditions.push(eq(pedidos.status, status));
-    if (start) conditions.push(gte(pedidos.criadoEm, start));
-    if (end) conditions.push(lte(pedidos.criadoEm, end));
+    let query = this.db
+      .from('pedidos')
+      .select('*, itens_pedido(*, produto:produtos(*))')
+      .order('criado_em', { ascending: false });
 
-    let query = this.drizzle
-      .select({
-        pedido: pedidos,
-        item: itensPedido,
-        produto: produtos
-      })
-      .from(pedidos)
-      .leftJoin(itensPedido, eq(pedidos.id, itensPedido.pedidoId))
-      .leftJoin(produtos, eq(itensPedido.produtoId, produtos.id));
+    if (status) query = query.eq('status', status);
+    if (start) query = query.gte('criado_em', start);
+    if (end) query = query.lte('criado_em', end);
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as any;
-    }
+    const { data, error } = await query;
+    if (error) throw error;
 
-    const results = query.orderBy(desc(pedidos.criadoEm)).all();
-
-    // Group by pedido
-    const pedidosMap = new Map<string, PedidoComItens>();
-    
-    for (const row of results) {
-      if (!pedidosMap.has(row.pedido.id)) {
-        pedidosMap.set(row.pedido.id, {
-          ...row.pedido,
-          itens: []
-        });
-      }
-      
-      if (row.item && row.produto) {
-        pedidosMap.get(row.pedido.id)!.itens.push({
-          ...row.item,
-          produto: row.produto
-        });
-      }
-    }
-
-    return Array.from(pedidosMap.values());
+    return (data ?? []).map((row: any) => ({
+      id: row.id,
+      numero: row.numero,
+      clienteNome: row.cliente_nome,
+      status: row.status,
+      codigoRastreio: row.codigo_rastreio ?? undefined,
+      custoFrete: row.custo_frete ?? 0,
+      criadoEm: row.criado_em,
+      atualizadoEm: row.atualizado_em,
+      itens: (row.itens_pedido ?? []).map((i: any) => ({
+        ...mapItemPedido(i),
+        produto: mapProduto(i.produto)
+      })),
+    }));
   }
 
   async getPedido(id: string): Promise<PedidoComItens | undefined> {
-    const results = this.drizzle
-      .select({
-        pedido: pedidos,
-        item: itensPedido,
-        produto: produtos
-      })
-      .from(pedidos)
-      .leftJoin(itensPedido, eq(pedidos.id, itensPedido.pedidoId))
-      .leftJoin(produtos, eq(itensPedido.produtoId, produtos.id))
-      .where(eq(pedidos.id, id))
-      .all();
+    const { data, error } = await this.db
+      .from('pedidos')
+      .select('*, itens_pedido(*, produto:produtos(*))')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return undefined;
 
-    if (results.length === 0) return undefined;
-
-    const pedido: PedidoComItens = {
-      ...results[0].pedido,
-      itens: []
+    return {
+      id: data.id,
+      numero: data.numero,
+      clienteNome: data.cliente_nome,
+      status: data.status,
+      codigoRastreio: data.codigo_rastreio ?? undefined,
+      custoFrete: data.custo_frete ?? 0,
+      criadoEm: data.criado_em,
+      atualizadoEm: data.atualizado_em,
+      itens: (data.itens_pedido ?? []).map((i: any) => ({
+        ...mapItemPedido(i),
+        produto: mapProduto(i.produto)
+      })),
     };
-
-    for (const row of results) {
-      if (row.item && row.produto) {
-        pedido.itens.push({
-          ...row.item,
-          produto: row.produto
-        });
-      }
-    }
-
-    return pedido;
   }
 
   async createPedido(insertPedido: InsertPedido): Promise<PedidoComItens> {
     const { generateOrderNumber } = await import('./services/numberService');
-    
     const numero = await generateOrderNumber();
-    const pedidoId = `pedido_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    this.db.transaction(() => {
-      // Insert pedido
-      this.drizzle.insert(pedidos).values({
-        id: pedidoId,
+    const { data: pedido, error: pedidoError } = await this.db
+      .from('pedidos')
+      .insert({
         numero,
-        clienteNome: insertPedido.clienteNome,
+        cliente_nome: insertPedido.clienteNome,
         status: StatusPedido.EmProducao,
-        criadoEm: new Date().toISOString(),
-        atualizadoEm: new Date().toISOString(),
-      }).run();
+        criado_em: new Date().toISOString(),
+        atualizado_em: new Date().toISOString(),
+      })
+      .select()
+      .single();
+    if (pedidoError) throw pedidoError;
 
-      // Insert itens
-      let custoTotalProducao = 0;
-      for (const item of insertPedido.itens) {
-        const produto = this.drizzle.select().from(produtos).where(eq(produtos.id, item.produtoId)).get();
-        if (!produto) throw new Error(`Produto ${item.produtoId} não encontrado`);
+    let custoTotalProducao = 0;
+    for (const item of insertPedido.itens) {
+      const { data: prod } = await this.db
+        .from('produtos')
+        .select('*')
+        .eq('id', item.produtoId)
+        .maybeSingle();
+      if (!prod) throw new Error(`Produto ${item.produtoId} não encontrado`);
 
-        const precoUnitario = item.precoUnitario && item.precoUnitario > 0 ? item.precoUnitario : produto.precoVenda;
-        custoTotalProducao += item.quantidade * produto.custoUnitario;
+      const precoUnitario = item.precoUnitario && item.precoUnitario > 0 ? item.precoUnitario : prod.preco_venda;
+      custoTotalProducao += item.quantidade * prod.custo_unitario;
 
-        this.drizzle.insert(itensPedido).values({
-          id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          pedidoId,
-          produtoId: item.produtoId,
-          quantidade: item.quantidade,
-          precoUnitario,
-        }).run();
-      }
+      await this.db.from('itens_pedido').insert({
+        pedido_id: pedido.id,
+        produto_id: item.produtoId,
+        quantidade: item.quantidade,
+        preco_unitario: precoUnitario,
+      });
+    }
 
-      // Criar lançamento de custo de produção
-      if (custoTotalProducao > 0) {
-        this.drizzle.insert(lancamentosCaixa).values({
-          id: `lanc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          tipo: TipoLancamento.Saida,
-          categoria: 'Custo de Produção',
-          valor: custoTotalProducao,
-          data: new Date().toISOString(),
-          pedidoId: pedidoId,
-        }).run();
-      }
-    })();
+    if (custoTotalProducao > 0) {
+      await this.db.from('lancamentos_caixa').insert({
+        tipo: TipoLancamento.Saida,
+        categoria: 'Custo de Produção',
+        valor: custoTotalProducao,
+        data: new Date().toISOString(),
+        pedido_id: pedido.id,
+      });
+    }
 
-    const result = await this.getPedido(pedidoId);
+    const result = await this.getPedido(pedido.id);
     if (!result) throw new Error('Erro ao criar pedido');
     return result;
   }
@@ -329,155 +250,117 @@ class SQLiteStorage implements IStorage {
     const pedidoAtual = await this.getPedido(id);
     if (!pedidoAtual) return undefined;
 
-    // Validate status transition
     if (pedidoAtual.status === StatusPedido.Concluido && novoStatus !== StatusPedido.Concluido) {
       throw new Error('Não é possível alterar status de pedido concluído');
     }
 
-    this.db.transaction(() => {
-      // Update pedido status
-      const updateData: any = { 
-        status: novoStatus, 
-        atualizadoEm: new Date().toISOString() 
-      };
-      
-      if (codigoRastreio !== undefined) {
-        updateData.codigoRastreio = codigoRastreio;
-      }
-      if (custoFrete !== undefined) {
-        updateData.custoFrete = custoFrete;
-      }
+    const updateData: any = {
+      status: novoStatus,
+      atualizado_em: new Date().toISOString(),
+    };
+    if (codigoRastreio !== undefined) updateData.codigo_rastreio = codigoRastreio;
+    if (custoFrete !== undefined) updateData.custo_frete = custoFrete;
 
-      this.drizzle
-        .update(pedidos)
-        .set(updateData)
-        .where(eq(pedidos.id, id))
-        .run();
+    const { error } = await this.db
+      .from('pedidos')
+      .update(updateData)
+      .eq('id', id);
+    if (error) throw error;
 
-      // Se mudando para Enviado, criar lançamento do frete
-      if (novoStatus === StatusPedido.Enviado && custoFrete && custoFrete > 0) {
-        this.drizzle.insert(lancamentosCaixa).values({
-          id: `lanc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          tipo: TipoLancamento.Saida,
-          categoria: 'Frete',
-          valor: custoFrete,
-          data: new Date().toISOString(),
-          pedidoId: id,
-        }).run();
-      }
+    if (novoStatus === StatusPedido.Enviado && custoFrete && custoFrete > 0) {
+      await this.db.from('lancamentos_caixa').insert({
+        tipo: TipoLancamento.Saida,
+        categoria: 'Frete',
+        valor: custoFrete,
+        data: new Date().toISOString(),
+        pedido_id: id,
+      });
+    }
 
-      // Se cancelado, remover lançamentos relacionados ao pedido
-      if (novoStatus === StatusPedido.Cancelado) {
-        this.drizzle
-          .delete(lancamentosCaixa)
-          .where(eq(lancamentosCaixa.pedidoId, id))
-          .run();
-      }
-
-    })();
+    if (novoStatus === StatusPedido.Cancelado) {
+      await this.db.from('lancamentos_caixa').delete().eq('pedido_id', id);
+    }
 
     return await this.getPedido(id);
   }
 
   async getLancamentosCaixa(start?: string, end?: string, pedidoId?: string): Promise<LancamentoCaixa[]> {
-    const conditions = [];
-    if (start) conditions.push(gte(lancamentosCaixa.data, start));
-    if (end) conditions.push(lte(lancamentosCaixa.data, end));
-    if (pedidoId) conditions.push(eq(lancamentosCaixa.pedidoId, pedidoId));
+    let query = this.db.from('lancamentos_caixa').select('*').order('data', { ascending: false });
+    if (start) query = query.gte('data', start);
+    if (end) query = query.lte('data', end);
+    if (pedidoId) query = query.eq('pedido_id', pedidoId);
 
-    let query = this.drizzle.select().from(lancamentosCaixa);
-
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as any;
-    }
-
-    return query.orderBy(desc(lancamentosCaixa.data)).all();
-  }
-
-  async getUsuarios(): Promise<Usuario[]> {
-    let query = this.drizzle.select().from(usuarios);
-    return query.all();
-  }
-
-  async getUsuarioByNome(nome: string): Promise<Usuario | undefined> {
-    const result = this.drizzle
-      .select()
-      .from(usuarios)
-      .where(eq(usuarios.nome, nome))
-      .get();
-    return result || undefined;
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data ?? []).map(mapLancamento);
   }
 
   async createLancamentoCaixa(lancamento: InsertLancamentoCaixa): Promise<LancamentoCaixa> {
-    const id = `lanc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    this.drizzle.insert(lancamentosCaixa).values({
-      id,
-      tipo: lancamento.tipo,
-      categoria: lancamento.categoria,
-      valor: lancamento.valor,
-      data: lancamento.data || new Date().toISOString(),
-      pedidoId: lancamento.pedidoId,
-      comprovante: lancamento.comprovante,
-    }).run();
+    const { data, error } = await this.db
+      .from('lancamentos_caixa')
+      .insert({
+        tipo: lancamento.tipo,
+        categoria: lancamento.categoria,
+        valor: lancamento.valor,
+        data: lancamento.data || new Date().toISOString(),
+        pedido_id: lancamento.pedidoId,
+        comprovante: lancamento.comprovante,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return mapLancamento(data);
+  }
 
-    const result = this.drizzle.select().from(lancamentosCaixa).where(eq(lancamentosCaixa.id, id)).get();
-    return result!;
+  async getResumoCaixa(start?: string, end?: string): Promise<ResumoCaixa> {
+    let query = this.db.from('lancamentos_caixa').select('*');
+    if (start) query = query.gte('data', start);
+    if (end) query = query.lte('data', end);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    const lancamentos = data ?? [];
+
+    const entradas = lancamentos.filter(l => l.tipo === TipoLancamento.Entrada).reduce((sum, l) => sum + l.valor, 0);
+    const saidas = lancamentos.filter(l => l.tipo === TipoLancamento.Saida).reduce((sum, l) => sum + l.valor, 0);
+
+    return { entradas, saidas, saldo: entradas - saidas };
   }
 
   async createUsuario(usuario: InsertUsuario): Promise<Usuario> {
-    const existing = this.drizzle
-      .select()
-      .from(usuarios)
-      .where(eq(usuarios.nome, usuario.nome))
-      .get();
+    const { data: existing } = await this.db
+      .from('usuarios')
+      .select('*')
+      .eq('nome', usuario.nome)
+      .maybeSingle();
     if (existing) {
       throw new Error('Usuário já existe');
     }
 
-    const maxId = this.db.prepare('SELECT MAX(id) as maxId FROM usuarios').get() as { maxId: number | null };
-    const nextId = (maxId?.maxId || 0) + 1;
-
-    this.drizzle
-      .insert(usuarios)
-      .values({
-        id: nextId,
-        nome: usuario.nome,
-        role: usuario.role,
-      })
-      .run();
-
-    const result = this.drizzle.select().from(usuarios).where(eq(usuarios.id, nextId)).get();
-    return result!;
+    const { data, error } = await this.db
+      .from('usuarios')
+      .insert({ nome: usuario.nome, role: usuario.role })
+      .select()
+      .single();
+    if (error) throw error;
+    return mapUsuario(data);
   }
 
-  async getResumoCaixa(start?: string, end?: string): Promise<ResumoCaixa> {
-    const conditions = [];
-    if (start) conditions.push(gte(lancamentosCaixa.data, start));
-    if (end) conditions.push(lte(lancamentosCaixa.data, end));
+  async getUsuarios(): Promise<Usuario[]> {
+    const { data, error } = await this.db.from('usuarios').select('*');
+    if (error) throw error;
+    return (data ?? []).map(mapUsuario);
+  }
 
-    let query = this.drizzle.select().from(lancamentosCaixa);
-
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as any;
-    }
-
-    const lancamentos = query.all();
-
-    const entradas = lancamentos
-      .filter(l => l.tipo === TipoLancamento.Entrada)
-      .reduce((sum, l) => sum + l.valor, 0);
-
-    const saidas = lancamentos
-      .filter(l => l.tipo === TipoLancamento.Saida)
-      .reduce((sum, l) => sum + l.valor, 0);
-
-    return {
-      entradas,
-      saidas,
-      saldo: entradas - saidas,
-    };
+  async getUsuarioByNome(nome: string): Promise<Usuario | undefined> {
+    const { data, error } = await this.db
+      .from('usuarios')
+      .select('*')
+      .eq('nome', nome)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? mapUsuario(data) : undefined;
   }
 }
 
-export const storage = new SQLiteStorage();
+export const storage = new SupabaseStorage(supabase);
