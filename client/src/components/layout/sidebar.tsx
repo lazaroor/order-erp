@@ -1,11 +1,12 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { FileText, DollarSign, Package } from "lucide-react";
+import { FileText, DollarSign, Package, Users } from "lucide-react";
 
 const navigation = [
   { name: "Pedidos", href: "/", icon: FileText },
   { name: "Fluxo de Caixa", href: "/caixa", icon: DollarSign },
   { name: "Produtos", href: "/produtos", icon: Package },
+  { name: "Usuários", href: "/usuarios", icon: Users },
 ];
 
 export function Sidebar() {

@@ -3,10 +3,12 @@ import type {
   Produto, 
   PedidoComItens, 
   LancamentoCaixa, 
-  ResumoCaixa, 
-  InsertPedido, 
+  ResumoCaixa,
+  InsertPedido,
   InsertLancamentoCaixa,
-  InsertProduto
+  InsertProduto,
+  InsertUsuario,
+  Usuario
 } from "../../../shared/schema";
 
 export const api = {
@@ -76,6 +78,14 @@ export const api = {
       
       const url = `/api/caixa/resumo${params.toString() ? `?${params}` : ''}`;
       return fetch(url).then(res => res.json());
+    },
+  },
+
+  // Usuarios
+  usuarios: {
+    create: async (usuario: InsertUsuario): Promise<Usuario> => {
+      const response = await apiRequest("POST", "/api/admin/usuarios", usuario);
+      return response.json();
     },
   },
 };
