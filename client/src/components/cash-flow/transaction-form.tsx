@@ -53,6 +53,15 @@ export function TransactionForm() {
   });
 
   const onSubmit = (data: InsertLancamentoCaixa) => {
+    const { valor } = data;
+    if (valor === 0) {
+      toast({
+        title: "Erro",
+        description: "Valor deve ser diferente de ZERO",
+        variant: "destructive",
+      });
+      return;
+    }
     createMutation.mutate(data);
   };
 
