@@ -324,6 +324,14 @@ class SQLiteStorage implements IStorage {
         }).run();
       }
 
+      // Se cancelado, remover lançamentos relacionados ao pedido
+      if (novoStatus === StatusPedido.Cancelado) {
+        this.drizzle
+          .delete(lancamentosCaixa)
+          .where(eq(lancamentosCaixa.pedidoId, id))
+          .run();
+      }
+
     })();
 
     return await this.getPedido(id);
