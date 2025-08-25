@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { StatusPedido, type PedidoComItens } from "../../../../shared/schema";
 import { api } from "@/lib/api";
@@ -41,6 +41,8 @@ export function OrderTable({ pedidos }: OrderTableProps) {
     pedido: null,
   });
 
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       api.pedidos.updateStatus(id, status),
@@ -74,6 +76,10 @@ export function OrderTable({ pedidos }: OrderTableProps) {
       isOpen: true,
       pedido,
     });
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
   };
 
   const closeShippingModal = () => {
@@ -153,7 +159,12 @@ export function OrderTable({ pedidos }: OrderTableProps) {
               const total = calculateTotal(pedido);
 
               return (
-                <TableRow key={pedido.id} className="hover:bg-gray-50" data-testid={`row-pedido-${pedido.id}`}>
+                <Fragment key={pedido.id}>
+                <TableRow
+                  onClick={() => toggleExpand(pedido.id)}
+                  className="hover:bg-gray-50 cursor-pointer"
+                  data-testid={`row-pedido-${pedido.id}`}
+                >
                   <TableCell>
                     <div className="text-sm font-medium text-gray-900" data-testid={`text-numero-${pedido.id}`}>
                       {pedido.numero}
@@ -199,7 +210,7 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleShip(pedido)}
+                          onClick={(e) => { e.stopPropagation(); handleShip(pedido); }}
                           disabled={updateStatusMutation.isPending}
                           className="text-blue-600 hover:text-blue-900"
                           data-testid={`button-enviar-${pedido.id}`}
@@ -211,7 +222,7 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handlePayment(pedido)}
+                          onClick={(e) => { e.stopPropagation(); handlePayment(pedido); }}
                           disabled={updateStatusMutation.isPending}
                           className="text-green-600 hover:text-green-900"
                           data-testid={`button-concluir-${pedido.id}`}
@@ -223,7 +234,7 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => updateStatusMutation.mutate({ id: pedido.id, status: 'Cancelado' })}
+                          onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: pedido.id, status: 'Cancelado' }); }}
                           disabled={updateStatusMutation.isPending}
                           className="text-red-600 hover:text-red-900"
                           data-testid={`button-cancelar-${pedido.id}`}
@@ -237,6 +248,21 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                     </div>
                   </TableCell>
                 </TableRow>
+                {expandedId === pedido.id && (
+                  <TableRow className="bg-gray-50" data-testid={`row-itens-${pedido.id}`}>
+                    <TableCell colSpan={7}>
+                      <ul className="pl-4 space-y-1">
+                        {pedido.itens.map((item) => (
+                          <li key={item.id} className="flex justify-between text-sm">
+                            <span>{item.produto.nome}</span>
+                            <span className="text-gray-600">Qtd: {item.quantidade}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </TableCell>
+                  </TableRow>
+                )}
+                </Fragment>
               );
             })}
           </TableBody>
