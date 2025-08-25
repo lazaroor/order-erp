@@ -18,7 +18,7 @@ import {
   type InsertProduto,
   type InsertPedido,
   type InsertLancamentoCaixa
-} from "@shared/schema";
+} from "../shared/schema";
 import path from 'path';
 import fs from 'fs';
 
@@ -249,14 +249,12 @@ class SQLiteStorage implements IStorage {
 
       // Insert itens
       let custoTotalProducao = 0;
-      let valorVenda = 0;
       for (const item of insertPedido.itens) {
         const produto = this.drizzle.select().from(produtos).where(eq(produtos.id, item.produtoId)).get();
         if (!produto) throw new Error(`Produto ${item.produtoId} não encontrado`);
 
         const precoUnitario = item.precoUnitario && item.precoUnitario > 0 ? item.precoUnitario : produto.precoVenda;
         custoTotalProducao += item.quantidade * produto.custoUnitario;
-        valorVenda += item.quantidade * precoUnitario;
 
         this.drizzle.insert(itensPedido).values({
           id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -274,18 +272,6 @@ class SQLiteStorage implements IStorage {
           tipo: TipoLancamento.Saida,
           categoria: 'Custo de Produção',
           valor: custoTotalProducao,
-          data: new Date().toISOString(),
-          pedidoId: pedidoId,
-        }).run();
-      }
-
-      // Criar lançamento de provisão de receita
-      if (valorVenda > 0) {
-        this.drizzle.insert(lancamentosCaixa).values({
-          id: `lanc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          tipo: TipoLancamento.Provisao,
-          categoria: 'Receita de Venda',
-          valor: valorVenda,
           data: new Date().toISOString(),
           pedidoId: pedidoId,
         }).run();
@@ -326,15 +312,6 @@ class SQLiteStorage implements IStorage {
         .where(eq(pedidos.id, id))
         .run();
 
-      // Ao confirmar pagamento, converter provisão em entrada
-      if (novoStatus === StatusPedido.Concluido && pedidoAtual.status === StatusPedido.AguardandoPagamento) {
-        this.drizzle
-          .update(lancamentosCaixa)
-          .set({ tipo: TipoLancamento.Entrada })
-          .where(and(eq(lancamentosCaixa.pedidoId, id), eq(lancamentosCaixa.tipo, TipoLancamento.Provisao)))
-          .run();
-      }
-
       // Se mudando para Enviado, criar lançamento do frete
       if (novoStatus === StatusPedido.Enviado && custoFrete && custoFrete > 0) {
         this.drizzle.insert(lancamentosCaixa).values({
@@ -347,12 +324,21 @@ class SQLiteStorage implements IStorage {
         }).run();
       }
 
-      // Se cancelado, remover provisão
-      if (novoStatus === StatusPedido.Cancelado) {
-        this.drizzle
-          .delete(lancamentosCaixa)
-          .where(and(eq(lancamentosCaixa.pedidoId, id), eq(lancamentosCaixa.tipo, TipoLancamento.Provisao)))
-          .run();
+      // If completing order, create entry for revenue
+      if (novoStatus === StatusPedido.Concluido) {
+        const valorVenda = pedidoAtual.itens.reduce(
+          (sum, item) => sum + (item.quantidade * item.precoUnitario), 0
+        );
+
+        // Entrada - Receita da Venda (o custo já foi lançado na criação do pedido)
+        this.drizzle.insert(lancamentosCaixa).values({
+          id: `lanc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          tipo: TipoLancamento.Entrada,
+          categoria: 'Receita de Venda',
+          valor: valorVenda,
+          data: new Date().toISOString(),
+          pedidoId: id,
+        }).run();
       }
     })();
 

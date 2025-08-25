@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertPedidoSchema, insertLancamentoCaixaSchema, insertProdutoSchema, StatusPedido } from "@shared/schema";
+import { insertPedidoSchema, insertLancamentoCaixaSchema, insertProdutoSchema, StatusPedido } from "../shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -100,9 +100,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let novoStatus: number;
       switch (novo) {
-        case 'AguardandoPagamento':
-          novoStatus = StatusPedido.AguardandoPagamento;
-          break;
         case 'EmProducao':
           novoStatus = StatusPedido.EmProducao;
           break;

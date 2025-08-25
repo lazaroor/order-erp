@@ -5,17 +5,15 @@ import { z } from "zod";
 
 // Enums
 export const StatusPedido = {
-  AguardandoPagamento: 1,
-  EmProducao: 2,
-  Enviado: 3,
-  Concluido: 4,
-  Cancelado: 5
+  EmProducao: 1,
+  Enviado: 2,
+  Concluido: 3,
+  Cancelado: 4
 } as const;
 
 export const TipoLancamento = {
   Entrada: 1,
-  Saida: 2,
-  Provisao: 3
+  Saida: 2
 } as const;
 
 // Tables
