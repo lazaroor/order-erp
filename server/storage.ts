@@ -374,6 +374,12 @@ class SQLiteStorage implements IStorage {
     return query.orderBy(desc(lancamentosCaixa.data)).all();
   }
 
+  async getUsuarios(start?: string, end?: string, pedidoId?: string): Promise<Usuario[]> {
+
+    let query = this.drizzle.select().from(usuarios);
+    return query.all();
+  }
+
   async createLancamentoCaixa(lancamento: InsertLancamentoCaixa): Promise<LancamentoCaixa> {
     const id = `lanc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     

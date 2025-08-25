@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { insertUsuarioSchema, type InsertUsuario, UserRole } from "../../../shared/schema";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import UserTable from "@/components/orders/user-table";
 
 export default function Users() {
   const { toast } = useToast();
@@ -39,6 +41,11 @@ export default function Users() {
       });
     },
   });
+
+  const { data: usuario = [], isLoading } = useQuery({
+      queryKey: ["/api/usuarios"],
+      queryFn: () => api.usuarios.list(),
+    });
 
   const onSubmit = (data: InsertUsuario) => {
     mutation.mutate(data);
@@ -112,6 +119,11 @@ export default function Users() {
             </form>
           </CardContent>
         </Card>
+        
+        <p>
+          Usuários
+        </p>
+        <UserTable users={usuario} />
       </div>
     </div>
   );

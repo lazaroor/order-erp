@@ -178,6 +178,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/usuarios/", async (req, res) => {
+    try {
+      const usuarios = await storage.getUsuarios();
+      res.json(usuarios);
+    } catch (error) {
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

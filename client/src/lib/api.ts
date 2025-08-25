@@ -87,5 +87,8 @@ export const api = {
       const response = await apiRequest("POST", "/api/admin/usuarios", usuario);
       return response.json();
     },
+    list: async () => {
+      return fetch("/api/usuarios").then(res => res.json());
+    },
   },
 };
