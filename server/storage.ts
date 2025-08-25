@@ -95,9 +95,19 @@ class SQLiteStorage implements IStorage {
         categoria TEXT NOT NULL,
         valor REAL NOT NULL,
         data TEXT NOT NULL DEFAULT (datetime('now')),
-        pedido_id TEXT REFERENCES pedidos(id)
+        pedido_id TEXT REFERENCES pedidos(id),
+        comprovante TEXT
       );
     `);
+
+    // Ensure comprovante column exists for existing databases
+    const lancamentoCols = this.db
+      .prepare("PRAGMA table_info(lancamentos_caixa)")
+      .all() as { name: string }[];
+    const hasComprovante = lancamentoCols.some((c) => c.name === "comprovante");
+    if (!hasComprovante) {
+      this.db.exec("ALTER TABLE lancamentos_caixa ADD COLUMN comprovante TEXT");
+    }
 
     // Seed produtos
     const produtoExists = this.db.prepare('SELECT COUNT(*) as count FROM produtos').get() as { count: number };
@@ -362,6 +372,7 @@ class SQLiteStorage implements IStorage {
       valor: lancamento.valor,
       data: lancamento.data || new Date().toISOString(),
       pedidoId: lancamento.pedidoId,
+      comprovante: lancamento.comprovante,
     }).run();
 
     const result = this.drizzle.select().from(lancamentosCaixa).where(eq(lancamentosCaixa.id, id)).get();

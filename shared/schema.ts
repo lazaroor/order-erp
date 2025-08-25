@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { sqliteTable, text, integer, real, blob } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -51,6 +51,7 @@ export const lancamentosCaixa = sqliteTable("lancamentos_caixa", {
   valor: real("valor").notNull(),
   data: text("data").notNull().default(sql`(datetime('now'))`),
   pedidoId: text("pedido_id").references(() => pedidos.id),
+  comprovante: text("comprovante"),
 });
 
 // Insert Schemas
@@ -80,6 +81,7 @@ export const insertLancamentoCaixaSchema = createInsertSchema(lancamentosCaixa).
   data: true,
 }).extend({
   data: z.string().optional(),
+  comprovante: z.string().optional(),
 });
 
 // Types

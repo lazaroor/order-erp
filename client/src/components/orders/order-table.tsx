@@ -118,7 +118,10 @@ export function OrderTable({ pedidos }: OrderTableProps) {
       case 'Concluido':
         return currentStatus === StatusPedido.Enviado;
       case 'Cancelado':
-        return currentStatus !== StatusPedido.Concluido;
+        return (
+          currentStatus !== StatusPedido.Concluido &&
+          currentStatus !== StatusPedido.Cancelado
+        );
       default:
         return false;
     }
