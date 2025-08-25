@@ -251,9 +251,9 @@ export function OrderTable({ pedidos }: OrderTableProps) {
                 {expandedId === pedido.id && (
                   <TableRow className="bg-gray-50" data-testid={`row-itens-${pedido.id}`}>
                     <TableCell colSpan={7}>
-                      <ul className="pl-4 space-y-1">
+                      <ul className="space-y-1">
                         {pedido.itens.map((item) => (
-                          <li key={item.id} className="flex justify-between text-sm">
+                          <li key={item.id} className="flex justify-center gap-2 text-sm">
                             <span>{item.produto.nome}</span>
                             <span className="text-gray-600">Qtd: {item.quantidade}</span>
                           </li>
